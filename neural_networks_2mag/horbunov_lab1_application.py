@@ -1,7 +1,8 @@
 import pandas as pd
+from datetime import datetime
 from lab1.core.activations import *
 from lab1.core.optimization import *
-from horbunov_lab1_core import Net, decision_boundary
+from horbunov_lab1_core import Net, decision_boundary, nn_classifier
 
 
 target_path = r"./data4.csv"
@@ -20,7 +21,10 @@ given_specification = {
         {"neurons": 1, "activation": SigmoidFunction},
     ],
 }
-gd_helper = GradientDescentHelper(learning_rate=0.001)
+num_epochs = 10000
+
+# Класичний градієнтний спуск
+gd_helper = GradientDescentHelper(learning_rate=0.005)
 nn_classic = Net(
     data_matrix=X,
     data_real=Y,
@@ -28,17 +32,37 @@ nn_classic = Net(
     optimizer_helper=gd_helper,
     num_batches=1,
 )
-
-num_epochs = 10000
 nn_classic.train_model(num_epochs=num_epochs)
 
-
-def nn_classifier(x, p=0.5):
-    return np.squeeze(np.array(nn_classic.pass_through(x) > p, dtype=int))
-
-
+nn_classic_classifier = nn_classifier(nn_classic)
+current_name = "classic" + str(datetime.today()).strip(" ")
 decision_boundary(
-    classifier=nn_classifier, x=X, y=Y, h=0.05, fig_size=(10, 10)
+    classifier=nn_classic_classifier,
+    x=X,
+    y=Y,
+    h=0.01,
+    fig_size=(10, 10),
+    name=current_name,
 )
 
-nn_classic.save("nn_classic")
+# Моментний градієнтний спуск
+mgd_helper = MomentDescentHelper(learning_rate=0.005, decay_rate=0.9)
+nn_moment = Net(
+    data_matrix=X,
+    data_real=Y,
+    specification=given_specification,
+    optimizer_helper=mgd_helper,
+    num_batches=1,
+)
+nn_moment.train_model(num_epochs=num_epochs)
+
+nn_moment_classifier = nn_classifier(nn_classic)
+current_name = "moment" + str(datetime.today()).strip(" ")
+decision_boundary(
+    classifier=nn_moment_classifier,
+    x=X,
+    y=Y,
+    h=0.01,
+    fig_size=(10, 10),
+    name=current_name,
+)

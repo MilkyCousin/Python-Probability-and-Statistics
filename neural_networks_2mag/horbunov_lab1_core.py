@@ -1,11 +1,12 @@
 import matplotlib
 import pickle as pkl
 from datetime import datetime
-from typing import Dict, Callable
-from lab1.core.activations import *
+from typing import Any, Callable, Union
+from lab1.core.activations import ActivationFunction
 from lab1.core.optimization import *
 from lab1.core.misc import *
 
+# Тому що дехто недбало поставив python
 matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 
@@ -32,7 +33,7 @@ class Layer:
         self.Z_cur = None
         self.A_cur = None
 
-    def forward(self, A_prev, training):
+    def forward(self, A_prev: np.array, training: bool) -> np.array:
         Z_cur = np.dot(A_prev, self.W) + self.b
         A_cur = self.activation.calculate(Z_cur)
 
@@ -42,10 +43,10 @@ class Layer:
 
         return A_cur
 
-    def backward(self):
+    def backward(self) -> np.array:
         return self.activation.calculate_derivative(self.Z_cur)
 
-    def reset_params(self):
+    def reset_params(self) -> None:
         self.W = self.generator(self.prev_num_of_neurons, self.num_of_neurons)
         self.b = self.generator(1, self.num_of_neurons)
 
@@ -56,8 +57,8 @@ class Layer:
 class Net:
     def __init__(
         self,
-        data_matrix,
-        data_real,
+        data_matrix: np.array,
+        data_real: np.array,
         specification: Dict,
         optimizer_helper: GradientDescentHelper,
         num_batches: int = 1,
@@ -85,7 +86,7 @@ class Net:
         self.optimizer = optimizer_helper
         self.loss = LossFunction()
 
-    def _forward(self, start=None, training=True):
+    def _forward(self, start: np.array = None, training: bool = True) -> np.array:
         A_prev = self.layers[0].forward(
             self.data if start is None else start, training=training
         )
@@ -97,10 +98,10 @@ class Net:
 
         return Y_prediction
 
-    def pass_through(self, x):
+    def pass_through(self, x: np.array) -> np.array:
         return self._forward(start=x, training=False)
 
-    def _backward(self):
+    def _backward(self) -> Union[None, bool]:
         # Припускаємо, що працюємо з задачею біноміальної класифікації
         # Де L(y, y.hat) = sum(y * ln(y.hat) + (1-y) * ln(1-y.hat))
         # Та останній шар мережі має активаційну функцію у якості сигмоїди.
@@ -113,11 +114,15 @@ class Net:
         db = np.sum(dZ, axis=0, keepdims=True)
 
         # Записуємо дані в оптимізатор
-        self.optimizer.put(dW=dW, db=db, layer_num=len(self.layers)-1)
+        self.optimizer.put(dW=dW, db=db, layer_num=len(self.layers) - 1)
 
         # Робимо крок по параметрам
-        self.layers[-1].W -= self.optimizer.pick(len(self.layers)-1, "dW") / self.number_of_records
-        self.layers[-1].b -= self.optimizer.pick(len(self.layers)-1, "db") / self.number_of_records
+        self.layers[-1].W -= (
+            self.optimizer.pick(len(self.layers) - 1, "dW") / self.number_of_records
+        )
+        self.layers[-1].b -= (
+            self.optimizer.pick(len(self.layers) - 1, "db") / self.number_of_records
+        )
 
         # Інші шари у моделі
         for layer_num in list(reversed(range(self.layers_num)))[1:]:
@@ -137,17 +142,21 @@ class Net:
             self.optimizer.put(dW=dW, db=db, layer_num=layer_num)
 
             # Робимо крок по параметрам
-            self.layers[layer_num].W -= self.optimizer.pick(layer_num, "dW") / self.number_of_records
-            self.layers[layer_num].b -= self.optimizer.pick(layer_num, "db") / self.number_of_records
+            self.layers[layer_num].W -= (
+                self.optimizer.pick(layer_num, "dW") / self.number_of_records
+            )
+            self.layers[layer_num].b -= (
+                self.optimizer.pick(layer_num, "db") / self.number_of_records
+            )
 
         return True
 
-    def train_one_epoch(self):
+    def train_one_epoch(self) -> float:
         current_prediction = self._forward()
         self._backward()
         return self.loss.calculate(y=self.real, y_hat=current_prediction)
 
-    def train_model(self, num_epochs: int, printable=True):
+    def train_model(self, num_epochs: int, printable=True) -> Union[None, bool]:
         num_digits = len(str(num_epochs))
 
         for epoch_num in range(num_epochs):
@@ -158,12 +167,12 @@ class Net:
                 )
         return True
 
-    def reset_params(self):
+    def reset_params(self) -> Union[None, bool]:
         for layer_num in range(len(self.layers)):
             self.layers[layer_num].reset_params()
         return True
 
-    def save(self, name):
+    def save(self, name) -> None:
         with open(f"./{name}.pkl", "wb") as out:
             out_dict = {"architecture": self.architecture, "layers": {}}
             for layer_num, layer in enumerate(self.layers):
@@ -175,8 +184,13 @@ class Net:
 
 
 def decision_boundary(
-    classifier, x, y, h=0.05, fig_size=(10, 10), name=str(datetime.today()).strip(" ")
-):
+    classifier: Any,
+    x: np.array,
+    y: np.array,
+    h: float = 0.05,
+    fig_size: tuple = (10, 10),
+    name: str = str(datetime.today()).strip(" "),
+) -> None:
     fig, ax = plt.subplots(figsize=fig_size)
 
     x_min, x_max = x[:, 0].min() - 1, x[:, 0].max() + 1
@@ -198,7 +212,18 @@ def decision_boundary(
     plt.clf()
 
 
+# Класифікація на основі натренованої мережі
+
+
+def nn_classifier(nn_unit: Net, p: float = 0.5) -> Callable:
+    def to_return(x: np.array):
+        return np.squeeze(np.array(nn_unit.pass_through(x) > p, dtype=int))
+
+    return to_return
+
+
 if __name__ == "__main__":
+    from lab1.core.activations import ReLuFunction, SigmoidFunction
     import numpy as np
 
     structure = {
