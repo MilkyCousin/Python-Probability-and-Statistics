@@ -18,6 +18,7 @@ given_specification = {
         {"neurons": 6, "activation": TanhFunction},
         {"neurons": 4, "activation": TanhFunction},
         {"neurons": 4, "activation": TanhFunction},
+        {"neurons": 2, "activation": TanhFunction},
         {"neurons": 1, "activation": SigmoidFunction},
     ],
 }
@@ -76,7 +77,7 @@ nn_rms = Net(
     data_real=Y,
     specification=given_specification,
     optimizer_helper=rms_helper,
-    num_batches=num_of_batches,
+    num_batches=1,
 )
 nn_rms.train_model(num_epochs=num_epochs)
 
@@ -84,6 +85,30 @@ nn_rms_classifier = nn_classifier(nn_rms)
 current_name = "rms" + str(datetime.today()).strip(" ")
 decision_boundary(
     classifier=nn_rms_classifier,
+    x=X,
+    y=Y,
+    h=0.01,
+    fig_size=(10, 10),
+    name=current_name,
+)
+print("=== Adam method ===")
+# Adam
+adam_helper = AdamHelper(
+    learning_rate=0.001, moment_decay_rate=0.9, rms_decay_rate=0.99
+)
+nn_adam = Net(
+    data_matrix=X,
+    data_real=Y,
+    specification=given_specification,
+    optimizer_helper=adam_helper,
+    num_batches=num_of_batches,
+)
+nn_adam.train_model(num_epochs=num_epochs)
+
+nn_adam_classifier = nn_classifier(nn_adam)
+current_name = "adam" + str(datetime.today()).strip(" ")
+decision_boundary(
+    classifier=nn_adam_classifier,
     x=X,
     y=Y,
     h=0.01,

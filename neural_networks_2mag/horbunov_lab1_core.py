@@ -55,12 +55,16 @@ class Layer:
 
 
 class Net:
+    """
+    Клас, що описує щільну нейронну мережу.
+    """
     def __init__(
         self,
         data_matrix: np.array,
         data_real: np.array,
         specification: Dict,
         optimizer_helper: GradientDescentHelper,
+        generator: Callable = gaussian_generator,
         num_batches: int = 1,
     ):
         self.data = data_matrix
@@ -78,7 +82,7 @@ class Net:
                 prev_num_neurons=self.architecture[layer_num],
                 num_neurons=self.architecture[layer_num + 1],
                 activation=current_spec["activation"],
-                generator=basic_generator,
+                generator=generator,
             )
             for layer_num, current_spec in enumerate(specification["layers_structure"])
         ]
@@ -133,12 +137,8 @@ class Net:
         self.optimizer.put(dW=dW, db=db, layer_num=len(self.layers) - 1)
 
         # Робимо крок по параметрам
-        self.layers[-1].W -= (
-            self.optimizer.pick(len(self.layers) - 1, "dW") / m
-        )
-        self.layers[-1].b -= (
-            self.optimizer.pick(len(self.layers) - 1, "db") / m
-        )
+        self.layers[-1].W -= self.optimizer.pick(len(self.layers) - 1, "dW") / m
+        self.layers[-1].b -= self.optimizer.pick(len(self.layers) - 1, "db") / m
 
         # Інші шари у моделі
         for layer_num in list(reversed(range(self.layers_num)))[1:]:
@@ -162,12 +162,8 @@ class Net:
             self.optimizer.put(dW=dW, db=db, layer_num=layer_num)
 
             # Робимо крок по параметрам
-            self.layers[layer_num].W -= (
-                self.optimizer.pick(layer_num, "dW") / m
-            )
-            self.layers[layer_num].b -= (
-                self.optimizer.pick(layer_num, "db") / m
-            )
+            self.layers[layer_num].W -= self.optimizer.pick(layer_num, "dW") / m
+            self.layers[layer_num].b -= self.optimizer.pick(layer_num, "db") / m
 
         return True
 
