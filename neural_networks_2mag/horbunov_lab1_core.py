@@ -15,6 +15,10 @@ import matplotlib.pyplot as plt
 
 
 class Layer:
+    """
+    Клас, що реалізує один шар щільної нейронної мережі.
+    """
+
     def __init__(
         self,
         prev_num_neurons: int,
@@ -22,6 +26,13 @@ class Layer:
         generator: Callable,
         activation: ActivationFunction,
     ):
+        """
+        Ініціалізація класу, що реалізує шар мережі.
+        :param prev_num_neurons: Кількість нейронів у попередньому шарі
+        :param num_neurons: Кількість нейронів у новому шарі
+        :param generator: Функція, що генерує випадкові матриці
+        :param activation: Активаційна функція шару
+        """
         self.prev_num_of_neurons = prev_num_neurons
         self.num_of_neurons = num_neurons
         self.activation = activation
@@ -34,6 +45,12 @@ class Layer:
         self.A_cur = None
 
     def forward(self, A_prev: np.array, training: bool) -> np.array:
+        """
+        Підрахунок значення активаційної функції на основі вхідних даних у шар.
+        :param A_prev: Вхідні дані у поточний шар
+        :param training: Чи тренується нейронна мережа?
+        :return: Значення активаційної функції на основі вхідних даних
+        """
         Z_cur = np.dot(A_prev, self.W) + self.b
         A_cur = self.activation.calculate(Z_cur)
 
@@ -44,9 +61,17 @@ class Layer:
         return A_cur
 
     def backward(self) -> np.array:
+        """
+        Обчислення значення похідної активаційної функції
+        :return: Значення похідної активаційної функції
+        """
         return self.activation.calculate_derivative(self.Z_cur)
 
     def reset_params(self) -> None:
+        """
+        Зводить до 'заводських налаштувань' параметри мережі.
+        :return: Нічого
+        """
         self.W = self.generator(self.prev_num_of_neurons, self.num_of_neurons)
         self.b = self.generator(1, self.num_of_neurons)
 
@@ -58,6 +83,7 @@ class Net:
     """
     Клас, що описує щільну нейронну мережу.
     """
+
     def __init__(
         self,
         data_matrix: np.array,
@@ -67,6 +93,15 @@ class Net:
         generator: Callable = gaussian_generator,
         num_batches: int = 1,
     ):
+        """
+        Ініціалізація параметрів класу, що реалізує нейронну мережу.
+        :param data_matrix: Матриця регресорів розмірності (n, p)
+        :param data_real: Матриця відгуків розмірності (n, m)
+        :param specification: Специфікація мережі: архітектура, кількість нейронів, активації на кожному шарі
+        :param optimizer_helper: Допоміжна функція в оптимізації
+        :param generator: Функція для генерування випадкових матриць
+        :param num_batches: Кількість міні-пакетів для тренування (насправді вийде n або n + 1)
+        """
         self.data = data_matrix
         self.real = data_real
         self.number_of_records = len(self.data)
@@ -96,6 +131,13 @@ class Net:
         idx: Union[np.array, List] = None,
         training: bool = True,
     ) -> np.array:
+        """
+        Алгоритм forward propagation.
+        :param start: Початкові дані, які треба загнати у вхідний шар
+        :param idx: Набір номерів елементів, що треба відібрати з початкових даних
+        :param training: Чи тренується наразі мережа?
+        :return: Значення активаційної функції з останнього шару
+        """
         A_prev = self.layers[0].forward(
             self.data[
                 idx,
@@ -113,9 +155,20 @@ class Net:
         return Y_prediction
 
     def pass_through(self, x: np.array) -> np.array:
+        """
+        Зробити прогноз нейронної мережі на основі вхідних даних x
+        :param x: Матриця розмірності (n записів, p параметрів), на основі якої треба робити прогноз
+        :return: Вектор прогнозів розмірності (n, n[L]), n[L] -- кількість нейронів у вихідному шарі мережі
+        """
         return self._forward(start=x, idx=range(len(x)), training=False)
 
     def _backward(self, idx: Union[np.array, List] = None) -> Union[None, bool]:
+        """
+        Алгоритм зворотного розповсюдження похибки (backward propagation).
+        :param idx: Набір номерів елементів, що треба відібрати з початкових даних
+        :return: Якщо все правильно спрацювало, повертає 'True'
+        """
+
         # Припускаємо, що працюємо з задачею біноміальної класифікації
         # Де L(y, y.hat) = sum(y * ln(y.hat) + (1-y) * ln(1-y.hat))
         # Та останній шар мережі має активаційну функцію у якості сигмоїди.
@@ -168,6 +221,12 @@ class Net:
         return True
 
     def train_one_epoch(self) -> float:
+        """
+        Тренуємо мережу за одну епоху. Тобто, спочатку виконуємо алгоритм forward propagation.
+        Далі, підрахунок градієнтів та оновлення параметрів у backward propagation.
+        Тренування проходить міні-пакетами.
+        :return: Вибіркове середнє втрат за всіма міні-пакетами
+        """
         number_of_packed_batches = self.number_of_records // self.batch_size
         residual = self.number_of_records - self.batch_size * number_of_packed_batches
         loss = []
@@ -200,6 +259,12 @@ class Net:
         return mean_loss
 
     def train_model(self, num_epochs: int, printable=True) -> Union[None, bool]:
+        """
+        Тренування моделі за скінченну кількість епох.
+        :param num_epochs: Кількість епох тренування мережі
+        :param printable: Чи виводити додаткову інформацію під час тренування?
+        :return: Якщо все правильно спрацювало, повертає 'True'
+        """
         num_digits = len(str(num_epochs))
 
         for epoch_num in range(num_epochs):
@@ -211,11 +276,20 @@ class Net:
         return True
 
     def reset_params(self) -> Union[None, bool]:
+        """
+        Зводить до 'заводських налаштувань' параметри мережі.
+        :return: Якщо все правильно спрацювало, повертає 'True'
+        """
         for layer_num in range(len(self.layers)):
             self.layers[layer_num].reset_params()
         return True
 
     def save(self, name) -> None:
+        """
+        Консервує параметри мережі для подальшого можливого зчитування
+        :param name: Шлях, назва файлу, в якому зберігатиметься інформація про параметри мережі
+        :return: Нічого
+        """
         with open(f"./{name}.pkl", "wb") as out:
             out_dict = {"architecture": self.architecture, "layers": {}}
             for layer_num, layer in enumerate(self.layers):
@@ -234,6 +308,16 @@ def decision_boundary(
     fig_size: tuple = (10, 10),
     name: str = str(datetime.today()).strip(" "),
 ) -> None:
+    """
+    Малює множини рішень на основі взятого класифікатора. Утворений малюнок зберігається у .png файлі.
+    :param classifier: Класифікатор
+    :param x: Двовимірна матриця регресорів
+    :param y: Вектор відгуків
+    :param h: Параметр щільності сітки для побудови контурного графіка
+    :param fig_size: Розмір вихідної картинки
+    :param name: Шлях, назва файлу, в якому зберігатиметься картинка
+    :return: Нічого
+    """
     fig, ax = plt.subplots(figsize=fig_size)
 
     x_min, x_max = x[:, 0].min() - 1, x[:, 0].max() + 1
@@ -259,7 +343,19 @@ def decision_boundary(
 
 
 def nn_classifier(nn_unit: Net, p: float = 0.5) -> Callable:
+    """
+    На основі нейронної мережі для задачі бінарної класифікації, повернути рішуче правило.
+    :param nn_unit: Сутність класу Net / Нейронна мережа
+    :param p: Параметр правдоподібності
+    :return: Рішуче правило на основі взятої мережі
+    """
+
     def to_return(x: np.array):
+        """
+        Рішуче правило бінарної класифікації
+        :param x: Матриця розмірності (n - записів, p - параметрів)
+        :return: Прогноз номерів класів у вигляді вектора розмірності (n, 1)
+        """
         return np.squeeze(np.array(nn_unit.pass_through(x) > p, dtype=int))
 
     return to_return

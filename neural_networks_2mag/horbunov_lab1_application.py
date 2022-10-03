@@ -71,13 +71,13 @@ decision_boundary(
 )
 print("=== RMS method ===")
 # RMS-propagation
-rms_helper = RMSPropHelper(learning_rate=0.05)
+rms_helper = RMSPropHelper(learning_rate=0.001)
 nn_rms = Net(
     data_matrix=X,
     data_real=Y,
     specification=given_specification,
     optimizer_helper=rms_helper,
-    num_batches=1,
+    num_batches=num_of_batches,
 )
 nn_rms.train_model(num_epochs=num_epochs)
 
@@ -94,7 +94,7 @@ decision_boundary(
 print("=== Adam method ===")
 # Adam
 adam_helper = AdamHelper(
-    learning_rate=0.001, moment_decay_rate=0.9, rms_decay_rate=0.99
+    learning_rate=0.001, moment_decay_rate=0.9, rms_decay_rate=0.999
 )
 nn_adam = Net(
     data_matrix=X,
