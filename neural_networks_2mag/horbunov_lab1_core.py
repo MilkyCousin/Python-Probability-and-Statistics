@@ -204,7 +204,7 @@ class Net:
 
         for epoch_num in range(num_epochs):
             current_loss = self.train_one_epoch()
-            if printable:
+            if printable and (epoch_num + 1) % 1000 == 0:
                 print(
                     f"Epoch #{str(epoch_num + 1).ljust(int(num_digits))}:\tLoss = {current_loss}"
                 )

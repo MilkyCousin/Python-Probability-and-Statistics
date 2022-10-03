@@ -71,7 +71,7 @@ decision_boundary(
 )
 print("=== RMS method ===")
 # RMS-propagation
-rms_helper = RMSPropHelper(learning_rate=0.00001)
+rms_helper = RMSPropHelper(learning_rate=0.05)
 nn_rms = Net(
     data_matrix=X,
     data_real=Y,

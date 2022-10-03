@@ -34,6 +34,7 @@ class MomentDescentHelper(GradientDescentHelper):
         self.beta = decay_rate
         self.decay_buffer = {}
         self.corrected = corrected
+        self.step = 1
 
     def put(self, dW: np.array, db: np.array, layer_num: int) -> Union[None, bool]:
         self.buffer[layer_num] = {"dW": dW, "db": db}
@@ -46,8 +47,9 @@ class MomentDescentHelper(GradientDescentHelper):
         previous_decay = self.decay_buffer[layer_num][key]
         next_decay = self.beta * previous_decay + (1 - self.beta) * current_derivative
         self.decay_buffer[layer_num][key] = next_decay * (
-            1 / (1 - self.beta ** (layer_num + 1)) if self.corrected else 1
+            1 / (1 - self.beta ** self.step) if self.corrected else 1
         )
+        self.step += 1
         return self.decay_buffer[layer_num][key] * self.learning_rate
 
 
@@ -74,12 +76,12 @@ class RMSPropHelper(MomentDescentHelper):
             current_derivative * current_derivative
         )
         self.decay_buffer[layer_num][key] = next_decay * (
-            1 / (1 - self.beta ** (layer_num + 1)) if self.corrected else 1
+            1 / (1 - self.beta ** self.step) if self.corrected else 1
         )
-        print(self.decay_buffer)
         normed_derivative = current_derivative / (
             np.sqrt(self.decay_buffer[layer_num][key]) + self.eps
         )
+        self.step += 1
         return normed_derivative * self.learning_rate
 
 
@@ -102,6 +104,7 @@ class AdamHelper(GradientDescentHelper):
         self.decay_rms = rms_decay_rate
 
         self.eps = epsilon
+        self.step = 1
 
     def put(self, dW: np.array, db: np.array, layer_num: int) -> Union[None, bool]:
         self.buffer[layer_num] = {"dW": dW, "db": db}
@@ -124,16 +127,17 @@ class AdamHelper(GradientDescentHelper):
             + (1 - self.decay_moment) * current_derivative
         )
         self.buffer_moment[layer_num][key] = next_decay_moment / (
-            1 - self.decay_moment ** (layer_num + 1)
+            1 - self.decay_moment ** self.step
         )
 
         next_decay_rms = self.decay_rms * previous_decay_rms + (1 - self.decay_rms) * (
             current_derivative * current_derivative
         )
         self.buffer_rms[layer_num][key] = next_decay_rms / (
-            1 - self.decay_rms ** (layer_num + 1)
+            1 - self.decay_rms ** self.step
         )
 
+        self.step += 1
         return self.alpha * (
             self.buffer_moment[layer_num][key]
             / (np.sqrt(self.buffer_rms[layer_num][key]) + self.eps)
