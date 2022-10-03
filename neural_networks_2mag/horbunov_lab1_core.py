@@ -1,8 +1,8 @@
 import matplotlib
 import pickle as pkl
 from datetime import datetime
-from typing import Any, Callable, Union
-from lab1.core.activations import ActivationFunction
+from typing import Any, Callable, Dict, Union, List
+from lab1.core.activations import *
 from lab1.core.optimization import *
 from lab1.core.misc import *
 
@@ -86,9 +86,19 @@ class Net:
         self.optimizer = optimizer_helper
         self.loss = LossFunction()
 
-    def _forward(self, start: np.array = None, training: bool = True) -> np.array:
+    def _forward(
+        self,
+        start: np.array = None,
+        idx: Union[np.array, List] = None,
+        training: bool = True,
+    ) -> np.array:
         A_prev = self.layers[0].forward(
-            self.data if start is None else start, training=training
+            self.data[
+                idx,
+            ]
+            if start is None
+            else start,
+            training=training,
         )
 
         for layer in self.layers[1:]:
@@ -99,17 +109,23 @@ class Net:
         return Y_prediction
 
     def pass_through(self, x: np.array) -> np.array:
-        return self._forward(start=x, training=False)
+        return self._forward(start=x, idx=range(len(x)), training=False)
 
-    def _backward(self) -> Union[None, bool]:
+    def _backward(self, idx: Union[np.array, List] = None) -> Union[None, bool]:
         # Припускаємо, що працюємо з задачею біноміальної класифікації
         # Де L(y, y.hat) = sum(y * ln(y.hat) + (1-y) * ln(1-y.hat))
         # Та останній шар мережі має активаційну функцію у якості сигмоїди.
         # TODO: узагальнити, це ж не так важко :)
         assert self.layers[-1].activation == SigmoidFunction, "Invalid outer activation"
+        m = len(idx)
 
         # Останній шар
-        dZ = self.layers[-1].A_cur - self.real
+        dZ = (
+            self.layers[-1].A_cur
+            - self.real[
+                idx,
+            ]
+        )
         dW = np.dot(np.transpose(self.layers[-2].A_cur), dZ)
         db = np.sum(dZ, axis=0, keepdims=True)
 
@@ -118,10 +134,10 @@ class Net:
 
         # Робимо крок по параметрам
         self.layers[-1].W -= (
-            self.optimizer.pick(len(self.layers) - 1, "dW") / self.number_of_records
+            self.optimizer.pick(len(self.layers) - 1, "dW") / m
         )
         self.layers[-1].b -= (
-            self.optimizer.pick(len(self.layers) - 1, "db") / self.number_of_records
+            self.optimizer.pick(len(self.layers) - 1, "db") / m
         )
 
         # Інші шари у моделі
@@ -132,7 +148,11 @@ class Net:
             )
             dW = np.dot(
                 np.transpose(
-                    self.layers[layer_num - 1].A_cur if layer_num > 0 else self.data
+                    self.layers[layer_num - 1].A_cur
+                    if layer_num > 0
+                    else self.data[
+                        idx,
+                    ]
                 ),
                 dZ,
             )
@@ -143,18 +163,45 @@ class Net:
 
             # Робимо крок по параметрам
             self.layers[layer_num].W -= (
-                self.optimizer.pick(layer_num, "dW") / self.number_of_records
+                self.optimizer.pick(layer_num, "dW") / m
             )
             self.layers[layer_num].b -= (
-                self.optimizer.pick(layer_num, "db") / self.number_of_records
+                self.optimizer.pick(layer_num, "db") / m
             )
 
         return True
 
     def train_one_epoch(self) -> float:
-        current_prediction = self._forward()
-        self._backward()
-        return self.loss.calculate(y=self.real, y_hat=current_prediction)
+        number_of_packed_batches = self.number_of_records // self.batch_size
+        residual = self.number_of_records - self.batch_size * number_of_packed_batches
+        loss = []
+
+        for k in range(number_of_packed_batches):
+            idx = np.arange(0, self.batch_size, 1) + self.batch_size * k
+            current_prediction = self._forward(idx=idx)
+            current_loss = self.loss.calculate(
+                y=self.real[
+                    idx,
+                ],
+                y_hat=current_prediction,
+            )
+            loss.append(current_loss)
+            self._backward(idx=idx)
+
+        if residual > 0:
+            idx = np.arange(0, residual, 1) + self.batch_size * number_of_packed_batches
+            current_prediction = self._forward(idx=idx)
+            current_loss = self.loss.calculate(
+                y=self.real[
+                    idx,
+                ],
+                y_hat=current_prediction,
+            )
+            loss.append(current_loss)
+            self._backward(idx=idx)
+
+        mean_loss = float(np.mean(loss))
+        return mean_loss
 
     def train_model(self, num_epochs: int, printable=True) -> Union[None, bool]:
         num_digits = len(str(num_epochs))

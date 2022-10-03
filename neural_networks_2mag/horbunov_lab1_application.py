@@ -22,7 +22,9 @@ given_specification = {
     ],
 }
 num_epochs = 10000
+num_of_batches = 20
 
+print("=== Classic method ===")
 # Класичний градієнтний спуск
 gd_helper = GradientDescentHelper(learning_rate=0.005)
 nn_classic = Net(
@@ -30,7 +32,7 @@ nn_classic = Net(
     data_real=Y,
     specification=given_specification,
     optimizer_helper=gd_helper,
-    num_batches=1,
+    num_batches=num_of_batches,
 )
 nn_classic.train_model(num_epochs=num_epochs)
 
@@ -44,22 +46,44 @@ decision_boundary(
     fig_size=(10, 10),
     name=current_name,
 )
-
+print("=== Moment method ===")
 # Моментний градієнтний спуск
-mgd_helper = MomentDescentHelper(learning_rate=0.005, decay_rate=0.9)
+mgd_helper = MomentDescentHelper(learning_rate=0.005)
 nn_moment = Net(
     data_matrix=X,
     data_real=Y,
     specification=given_specification,
     optimizer_helper=mgd_helper,
-    num_batches=1,
+    num_batches=num_of_batches,
 )
 nn_moment.train_model(num_epochs=num_epochs)
 
-nn_moment_classifier = nn_classifier(nn_classic)
+nn_moment_classifier = nn_classifier(nn_moment)
 current_name = "moment" + str(datetime.today()).strip(" ")
 decision_boundary(
     classifier=nn_moment_classifier,
+    x=X,
+    y=Y,
+    h=0.01,
+    fig_size=(10, 10),
+    name=current_name,
+)
+print("=== RMS method ===")
+# RMS-propagation
+rms_helper = RMSPropHelper(learning_rate=0.00001)
+nn_rms = Net(
+    data_matrix=X,
+    data_real=Y,
+    specification=given_specification,
+    optimizer_helper=rms_helper,
+    num_batches=num_of_batches,
+)
+nn_rms.train_model(num_epochs=num_epochs)
+
+nn_rms_classifier = nn_classifier(nn_rms)
+current_name = "rms" + str(datetime.today()).strip(" ")
+decision_boundary(
+    classifier=nn_rms_classifier,
     x=X,
     y=Y,
     h=0.01,
